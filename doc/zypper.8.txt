@@ -429,6 +429,23 @@ include::{incdir}/option_Solver_Flags_Common.txt[]
 		No automatic removal of unneeded dependencies.
 --
 
+*markauto* ['options'] 'package'...:: {nop}
+*unmarkauto* ['options'] 'package'...::
+	Mark or unmark installed packages as having been automatically installed.
+	+
+	Automatically installed packages may later be removed, if no more manually installed package depends on them (e.g. by *zypper remove --clean-deps*). See also section *Automatically installed packages*.
++
+--
+	*-t*, *--type* 'TYPE'::
+		Type of package to consider. The default is to prefer packages.
+
+	*-n*, *--name*::
+		Select packages by name only. Do not fall back to matching capabilities.
+
+	*-C*, *--capability*::
+		Select packages by capability only.
+--
+
 Update Management Commands
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 

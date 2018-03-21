@@ -183,6 +183,9 @@ _zypper() {
 			install | in | source-install | si | download | info | if)
 				opts=(${opts[@]}$(echo; _available_packages ))
 			;;
+			markauto | unmarkauto)
+				opts=(${opts[@]}$(echo; _installed_packages ))
+			;;
 		esac
 		fi
 		IFS=$'\n'

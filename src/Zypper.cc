@@ -57,6 +57,7 @@
 #include "ps.h"
 #include "download.h"
 #include "source-download.h"
+#include "markauto.h"
 #include "configtest.h"
 #include "subcommand.h"
 
@@ -182,6 +183,22 @@ using namespace zypp;
     + ( _gopts.exclude_optional_patches_default		\
     ? _("The default is to exclude optional patches.")	\
     : _("The default is to include optional patches.") ))
+
+
+#define ARG_BasicPackageSpec	\
+    {"type",				required_argument,	0, 't'},	\
+    {"name",				no_argument,		0, 'n'},	\
+    {"capability",			no_argument,		0, 'C'}
+
+#define option_BasicPackageSpec	\
+     option( "-t, --type <TYPE>",	_("Type of package to consider. The default is to prefer packages.") )	\
+    .option( "-n, --name",		_("Select packages by name only. Do not fall back to matching capabilities.") )	\
+    .option( "-C, --capability",	_("Select packages by capability only.") )
+
+
+#define option_DryRun	\
+     option( "-D, --dry-run",		_("Show what the command would do, but do not perform any action.") )
+
 
 ///////////////////////////////////////////////////////////////////
 namespace cli
@@ -531,6 +548,18 @@ namespace
     CommandHelpFormater & option26( boost::string_ref option_r, boost::string_ref text_r )
     { _mww.writeDefinition( option_r , text_r, (option_r.starts_with( "--" )?4:0), 26 ); return *this; }
 
+  public:	/// global help section
+
+    /** Global help command description
+     * \code
+     * "123456789012345678901234567890123456789
+     * "        update, up              Update installed packages with newer versions.
+     * \endcode
+     * \note Bash completion currently expects description to start with an uppercase letter!
+     */
+    CommandHelpFormater & globalHelpCommand( boost::string_ref command_r, boost::string_ref text_r )
+    { _mww.writeDefinition( command_r, text_r, 8, 32 ); return *this; }
+
   private:
     std::ostringstream   _str;
     mbs::MbsWriteWrapped _mww;
@@ -732,7 +761,8 @@ void print_main_help( Zypper & zypper )
     "\trefresh-services, refs\tRefresh all services.\n"
   );
 
-  static std::string help_package_commands = _("     Software Management:\n"
+  static std::string help_package_commands = ( CommandHelpFormater() <<
+  _("     Software Management:\n"
     "\tinstall, in\t\tInstall packages.\n"
     "\tremove, rm\t\tRemove packages.\n"
     "\tverify, ve\t\tVerify integrity of package dependencies.\n"
@@ -741,7 +771,9 @@ void print_main_help( Zypper & zypper )
     "\tinstall-new-recommends, inr\n"
     "\t\t\t\tInstall newly added packages recommended\n"
     "\t\t\t\tby installed packages.\n"
-  );
+  ) )
+  .globalHelpCommand( "markauto, unmarkauto", 	_("Mark or unmark installed packages as having been automatically installed.") )
+  ;
 
   static std::string help_update_commands = _("     Update Management:\n"
     "\tupdate, up\t\tUpdate installed packages with newer versions.\n"
@@ -1909,6 +1941,35 @@ void Zypper::processCommandOptions()
 
     .optionSectionSolverOptions()
     .option_Solver_Flags_Common
+    ;
+    break;
+  }
+
+  case ZypperCommand::MARKAUTO_e:
+  case ZypperCommand::UNMARKAUTO_e:
+  {
+    shared_ptr<MarkautoOptions> myOpts( new MarkautoOptions( (command() == ZypperCommand::UNMARKAUTO) ) );
+    _commandOptions = myOpts;
+    static struct option options[] = {
+      ARG_BasicPackageSpec,
+      {"dry-run",		no_argument,		&myOpts->_dryrun, 1},
+      {"help",			no_argument,		0, 'h' },
+      {0, 0, 0, 0}
+    };
+    specific_options = options;
+    _command_help = CommandHelpFormater()
+    .synopsis(	// translators: command synopsis; do not translate lowercase words
+    _("markauto [OPTIONS] PACKAGE..")
+    )
+    .synopsis(	// translators: command synopsis; do not translate lowercase words
+    _("unmarkauto [OPTIONS] PACKAGE..")
+    )
+    .description(// translators: command description
+    _("Mark or unmark installed packages as having been automatically installed. Automatically installed packages may later be removed, if no more manually installed package depends on them.")
+    )
+    .optionSectionCommandOptions()
+    .option_BasicPackageSpec
+    .option_DryRun
     ;
     break;
   }
@@ -4447,6 +4508,49 @@ void Zypper::doCommand()
     load_resolvables( *this );
     solve_and_commit( *this );
 
+    break;
+  }
+
+  // --------------------------( markauto )-------------------------------------
+  //
+  case ZypperCommand::MARKAUTO_e:
+  case ZypperCommand::UNMARKAUTO_e:
+  {
+    if ( geteuid() != 0 )
+    {
+      if ( ! globalOpts().changedRoot )
+      {
+	out().error(_("Root privileges are required for this command.") );
+	setExitCode( ZYPPER_EXIT_ERR_PRIVILEGES );
+	return;
+      }
+      else
+      {
+	Pathname homeDir( _gopts.root_dir / God->homePath() );
+	if ( ! userMayUseDir( homeDir ) )
+	{
+	  out().error( str::Format(_("Insufficient privileges to use directory '%s'.")) % homeDir );
+	  setExitCode( ZYPPER_EXIT_ERR_PRIVILEGES );
+	  return;
+	}
+      }
+    }
+
+    if ( _arguments.empty() )
+    {
+      report_required_arg_missing( out(), _command_help );
+      setExitCode( ZYPPER_EXIT_ERR_INVALID_ARGS );
+      return;
+    }
+
+    // prepare
+    init_target( *this );
+    load_resolvables( *this );
+    if ( exitCode() != ZYPPER_EXIT_OK )
+      return;
+
+    // go
+    markauto( *this );
     break;
   }
 

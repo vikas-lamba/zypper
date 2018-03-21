@@ -53,6 +53,8 @@ namespace
       _t( SRC_INSTALL_e )	| "source-install"	| "si";
       _t( VERIFY_e )		| "verify"		| "ve";
       _t( INSTALL_NEW_RECOMMENDS_e )| "install-new-recommends" | "inr";
+      _t( MARKAUTO_e )		| "markauto";
+      _t( UNMARKAUTO_e )	| "unmarkauto";
 
       _t( UPDATE_e )		| "update"		| "up";
       _t( LIST_UPDATES_e )	| "list-updates"	| "lu";
@@ -133,6 +135,8 @@ DEF_ZYPPER_COMMAND( REMOVE );
 DEF_ZYPPER_COMMAND( SRC_INSTALL );
 DEF_ZYPPER_COMMAND( VERIFY );
 DEF_ZYPPER_COMMAND( INSTALL_NEW_RECOMMENDS );
+DEF_ZYPPER_COMMAND( MARKAUTO );
+DEF_ZYPPER_COMMAND( UNMARKAUTO );
 
 DEF_ZYPPER_COMMAND( UPDATE );
 DEF_ZYPPER_COMMAND( LIST_UPDATES );
